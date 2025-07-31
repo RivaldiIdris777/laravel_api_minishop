@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class ProductResource extends JsonResource
+{
+    //define properti
+   public $status;
+   public $message;
+   public $httpstatus;
+   public $resource;
+
+   /**
+    * __construct
+    *
+    * @param  mixed $status
+    * @param  mixed $message
+    * @param  mixed $resource
+    * @return void
+    */
+   public function __construct($status, $message, $httpstatus, $resource)
+   {
+       parent::__construct($resource);
+       $this->status  = $status;
+       $this->message = $message;
+       $this->httpstatus = $httpstatus;
+   }
+
+   /**
+    * toArray
+    *
+    * @param  mixed $request
+    * @return array
+   */
+
+   public function toArray(Request $request): array
+   {
+       return [
+           'success'   => $this->status,
+           'message'   => $this->message,
+           'status'    => $this->httpstatus,
+           'data'      => $this->resource
+       ];
+   }
+}
