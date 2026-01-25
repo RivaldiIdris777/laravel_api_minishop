@@ -57,13 +57,14 @@ class ProductController extends Controller
             return response()->json($validator->errors(), 422);
         }
          
-       //upload image
+        // upload image to public disk and store filename
         $image = $request->file('image');
-        $image->storeAs('product', $image->hashName());
+        $imagePath = $image->store('product', 'public');
+        $imageName = basename($imagePath);
 
-        //create post
+        // create post (store filename, accessor builds URL)
         $products = Product::create([            
-            'image'         =>      $image->hashName(),
+            'image'         =>      $imageName,
             'name' =>               $request->name,
             'slug' =>               generateUniqueSlug('Product', $request->name),
             'category_id' =>        $request->category_id,
@@ -140,18 +141,8 @@ class ProductController extends Controller
         }
 
         try {
-            // Jika ada file gambar baru
-            if ($request->hasFile('image')) {
-                $image = $request->file('image');
-                $image->storeAs('public/product', $image->hashName());
-
-                // Hapus gambar lama jika ada
-                if ($product->image) {
-                    Storage::delete('public/product/' . basename($product->image));
-                }
-
-                $product->update([
-                    'image' => $image->hashName(), // Simpan nama file baru
+                // Build update payload
+                $updateData = [
                     'name' => $request->name,
                     'slug' => generateUniqueSlug('Product', $request->name),
                     'category_id' => $request->category_id,
@@ -164,24 +155,23 @@ class ProductController extends Controller
                     'seo_description' => $request->seo_description,
                     'show_at_home' => $request->show_at_home,
                     'status' => $request->status,
-                ]);
-            }
+                ];
 
-            // Update data produk
-            $product->update([
-                'name' => $request->name,
-                'slug' => generateUniqueSlug('Product', $request->name),
-                'category_id' => $request->category_id,
-                'price' => $request->price,
-                'offer_price' => $request->offer_price,
-                'short_description' => $request->short_description,
-                'long_description' => $request->long_description,
-                'sku' => $request->sku,
-                'seo_title' => $request->seo_title,
-                'seo_description' => $request->seo_description,
-                'show_at_home' => $request->show_at_home,
-                'status' => $request->status,
-            ]);
+                // If new image provided, store it and delete old one
+                if ($request->hasFile('image')) {
+                    $image = $request->file('image');
+                    $imagePath = $image->store('product', 'public');
+                    $imageName = basename($imagePath);
+
+                    if ($product->image) {
+                        Storage::disk('public')->delete('product/' . $product->image);
+                    }
+
+                    $updateData['image'] = $imageName;
+                }
+
+                // Update product
+                $product->update($updateData);
 
             return new ProductResource(true, 'Data Product berhasil diperbarui!', 200, $product);
 
@@ -202,10 +192,17 @@ class ProductController extends Controller
         //find post by ID
         $product = Product::find($id);
 
-          //delete image
-        Storage::delete('public/product/'.basename($product->image));
+        if (!$product) {
+            return response()->json(['message' => 'Produk tidak ditemukan'], 404);
+        }
 
-        //delete post
+        // Ambil nama file dari URL
+        $imageName = basename($product->image);
+
+        // Delete image file
+        Storage::delete('product/' . $imageName);
+
+        // Delete product
         $product->delete();
 
         //return response
