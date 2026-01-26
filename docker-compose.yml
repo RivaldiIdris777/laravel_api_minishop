@@ -6,7 +6,7 @@ services:
     image: nginx:alpine
     container_name: laravel-minishop-nginx
     ports:
-      - "80:80"
+      - "8000:80"
       - "443:443"
     volumes:
       - ./:/var/www/html
@@ -37,7 +37,6 @@ services:
       - ./storage/app/public:/var/www/html/storage/app/public
     depends_on:
       - mysql
-      - redis
     networks:
       - laravel-network
     environment:
@@ -47,12 +46,9 @@ services:
       - DB_DATABASE=laravel_minishop
       - DB_USERNAME=laravel_user
       - DB_PASSWORD=laravel_password
-      - CACHE_DRIVER=redis
+      - CACHE_DRIVER=file
       - QUEUE_CONNECTION=database
       - SESSION_DRIVER=database
-      - REDIS_HOST=redis
-      - REDIS_PASSWORD=null
-      - REDIS_PORT=6379
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "php", "-r", "exit(0);"]
@@ -97,7 +93,6 @@ services:
       - ./:/var/www/html
     depends_on:
       - mysql
-      - redis
       - app
     networks:
       - laravel-network
@@ -108,16 +103,13 @@ services:
       - DB_DATABASE=laravel_minishop
       - DB_USERNAME=laravel_user
       - DB_PASSWORD=laravel_password
-      - CACHE_DRIVER=redis
+      - CACHE_DRIVER=file
       - QUEUE_CONNECTION=database
-      - REDIS_HOST=redis
     command: php artisan queue:work --sleep=3 --tries=3
     restart: unless-stopped
 
 volumes:
   mysql-data:
-    driver: local
-  redis-data:
     driver: local
 
 networks:

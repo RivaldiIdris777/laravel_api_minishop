@@ -1,38 +1,27 @@
-# Stage 2: PHP Application Runtime
 FROM php:8.2-fpm-alpine
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Install system dependencies dan PHP extensions
-RUN apk add --no-cache \
-    # Build tools
+# Install build dependencies first
+RUN apk add --no-cache --virtual .build-deps \
+    autoconf \
     build-base \
-    # MySQL/MariaDB client
+    && apk add --no-cache \
     mysql-client \
-    # Curl untuk health check
     curl \
-    # ZIP support
-    zlib-dev \
-    # Image processing
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    # Git (optional, untuk debugging)
     git \
-    # Supervisor untuk menjalankan queue (optional)
-    supervisor
+    oniguruma-dev
 
 # Install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install -j$(nproc) \
+RUN docker-php-ext-install -j$(nproc) \
     pdo \
     pdo_mysql \
-    gd \
-    zip \
     bcmath \
-    opcache && \
-    docker-php-ext-enable opcache
+    && docker-php-ext-enable pdo pdo_mysql bcmath
+
+# Remove build dependencies
+RUN apk del --no-network .build-deps
 
 # Configure PHP untuk production
 RUN echo "memory_limit = 256M" > /usr/local/etc/php/conf.d/laravel.ini && \
@@ -47,16 +36,13 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN addgroup -g 1000 kevinuser && \
     adduser -D -u 1000 -G kevinuser kevinuser
 
-# Copy built assets dari frontend builder
-COPY --from=frontend-builder --chown=kevinuser:kevinuser /app/public/build /var/www/html/public/build
-
 # Copy project files
 COPY --chown=kevinuser:kevinuser . /var/www/html
 
 # Change to kevinuser
 USER kevinuser
 
-# Install PHP dependencies (production only)
+# Install PHP dependencies
 RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
 
 # Create storage directories
@@ -68,7 +54,7 @@ EXPOSE 9000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD php -r "exit(file_exists('/var/www/html/storage/logs/laravel.log') ? 0 : 1);" || exit 1
+    CMD curl -f http://localhost:9000/ping || exit 1
 
 # Default command - jalankan PHP-FPM
 CMD ["php-fpm"]
