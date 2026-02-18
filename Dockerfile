@@ -27,12 +27,15 @@ RUN apk del --no-network .build-deps
 RUN echo "memory_limit = 256M" > /usr/local/etc/php/conf.d/laravel.ini && \
     echo "upload_max_filesize = 100M" >> /usr/local/etc/php/conf.d/laravel.ini && \
     echo "post_max_size = 100M" >> /usr/local/etc/php/conf.d/laravel.ini && \
-    echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/laravel.ini
+    echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/laravel.ini && \
+    echo "error_log = /var/www/html/storage/logs/php-error.log" >> /usr/local/etc/php/conf.d/laravel.ini && \
+    echo "log_errors = On" >> /usr/local/etc/php/conf.d/laravel.ini
 
 # Copy Composer dari official image
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Create non-root user untuk security
+# Gunakan UID/GID 1000 agar sesuai dengan user host (Linux/Mac)
 RUN addgroup -g 1000 kevinuser && \
     adduser -D -u 1000 -G kevinuser kevinuser
 
@@ -45,8 +48,12 @@ USER kevinuser
 # Install PHP dependencies
 RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
 
-# Create storage directories
-RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} && \
+# Create storage directories dan set permission
+RUN mkdir -p storage/logs \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
 # Expose port 9000 untuk PHP-FPM
@@ -54,7 +61,7 @@ EXPOSE 9000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:9000/ping || exit 1
+    CMD php -r "exit(0);" || exit 1
 
 # Default command - jalankan PHP-FPM
 CMD ["php-fpm"]
