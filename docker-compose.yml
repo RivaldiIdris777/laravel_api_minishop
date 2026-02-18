@@ -81,7 +81,8 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./db_laravel_minishop.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./db_laravel_minishop.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./docker/mysql/init-grants.sql:/docker-entrypoint-initdb.d/02_grants.sql
     environment:
       - MYSQL_DATABASE=laravel_minishop
       - MYSQL_USER=laravel_user
