@@ -83,6 +83,15 @@ services:
       - mysql-data:/var/lib/mysql
       - ./db_laravel_minishop.sql:/docker-entrypoint-initdb.d/01_init.sql
       - ./docker/mysql/init-grants.sql:/docker-entrypoint-initdb.d/02_grants.sql
+      - ./docker/mysql/always-grants.sql:/always-grants.sql
+    command: >
+      bash -c "
+        docker-entrypoint.sh mysqld &
+        pid=$$!
+        until mysqladmin ping -uroot -proot_password --silent; do sleep 1; done
+        mysql -uroot -proot_password < /always-grants.sql
+        wait $$pid
+      "
     environment:
       - MYSQL_DATABASE=laravel_minishop
       - MYSQL_USER=laravel_user
