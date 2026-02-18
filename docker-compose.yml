@@ -9,7 +9,6 @@ services:
       - "8000:80"
       - "443:443"
     volumes:
-      - ./:/var/www/html
       - ./docker/nginx/conf.d:/etc/nginx/conf.d
       - ./docker/nginx/ssl:/etc/nginx/ssl
     depends_on:
@@ -38,7 +37,6 @@ services:
     container_name: laravel-minishop-app
     working_dir: /var/www/html
     volumes:
-      - ./:/var/www/html
       - ./storage/logs:/var/www/html/storage/logs
       - ./storage/app/public:/var/www/html/storage/app/public
     depends_on:
