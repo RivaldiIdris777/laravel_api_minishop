@@ -48,7 +48,7 @@ services:
       - APP_DEBUG=true
       - APP_KEY=base64:CcQLPl8XhVNc0bDhxANeZk2w8vO1XnTmeM0btM0EqX4=
       - DB_CONNECTION=mysql
-      - DB_HOST=mysql
+      - DB_HOST=127.0.0.1
       - DB_PORT=3306
       - DB_DATABASE=laravel_minishop
       - DB_USERNAME=laravel_user
@@ -81,17 +81,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./db_laravel_minishop.sql:/docker-entrypoint-initdb.d/01_init.sql
-      - ./docker/mysql/init-grants.sql:/docker-entrypoint-initdb.d/02_grants.sql
-      - ./docker/mysql/always-grants.sql:/always-grants.sql
-    command: >
-      bash -c "
-        docker-entrypoint.sh mysqld &
-        pid=$$!
-        until mysqladmin ping -uroot -proot_password --silent; do sleep 1; done
-        mysql -uroot -proot_password < /always-grants.sql
-        wait $$pid
-      "
+      - ./db_laravel_minishop.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - MYSQL_DATABASE=laravel_minishop
       - MYSQL_USER=laravel_user
