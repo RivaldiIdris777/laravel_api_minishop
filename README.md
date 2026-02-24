@@ -578,3 +578,5 @@ php artisan serve
 - Untuk production, gunakan HTTPS dan validasi CORS dengan benar
 - Pastikan file `.env` dikonfigurasi dengan benar sebelum menjalankan aplikasi
 - Untuk mengakses dokumentasi api via browser berikan url : urlanda:8000/docs/api
+- Untuk branch grafanapromotheus sudah menggunakan docker dan jenkins dan sudah melakukan ci/cd. silahkan akses di http://ipaddress:9090/ 
+- ada beberapa konfigurasi tambahan yang harus dibuat perintah pada vps seperti memberikan hak akses folder pada user jenkins no password dan ipv6 dimatikan false pada lokasi docker/daemon.json
