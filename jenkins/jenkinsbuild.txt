@@ -1,0 +1,59 @@
+#!/bin/bash
+set -e
+ 
+echo "=== STEP 1: DEFINE PATH ==="
+WORKSPACE_DIR="$WORKSPACE"
+TARGET_DIR="/home/kevinuser"
+APP_DIR="$TARGET_DIR/laravel_app"
+ 
+echo "=== STEP 2: CLEAN TARGET DIRECTORY ==="
+sudo rm -rf "$APP_DIR"
+sudo mkdir -p "$APP_DIR"
+ 
+echo "=== STEP 3: MOVE SOURCE CODE INTO TARGET ==="
+# Menggunakan cp -a agar metadata file terjaga sebelum workspace dibersihkan
+sudo cp -a "$WORKSPACE_DIR/." "$APP_DIR/"
+ 
+echo "=== STEP 4: FIX OWNERSHIP ==="
+sudo chown -R jenkins:jenkins "$APP_DIR"
+ 
+echo "=== STEP 5: STOP & REMOVE OLD DOCKER CONTAINERS ==="
+cd "$APP_DIR"
+# Hentikan semua container yang berjalan agar image bisa dihapus
+sudo docker compose down -v --remove-orphans || true
+
+echo "=== STEP 6: REMOVE ALL DOCKER IMAGES (FORCED) ==="
+# Mengambil semua ID image
+IMAGES=$(sudo docker images -a -q)
+
+if [ -n "$IMAGES" ]; then
+    echo "Deleting all images..."
+    # Hapus semua image secara paksa (-f)
+    sudo docker rmi -f $IMAGES
+else
+    echo "No images found, skipping deletion."
+fi
+
+echo "=== STEP 7: BUILD DOCKER IMAGE ==="
+# Menjalankan build dari Dockerfile di lokasi target
+sudo docker compose build --no-cache
+ 
+echo "=== STEP 8: RUN DOCKER COMPOSE ==="
+sudo docker compose up -d
+ 
+echo "=== STEP 9: Migrate Docker Tabel ==="
+echo "Waiting for MySQL to be ready..."
+# Menggunakan 'sh' (kompatibel dengan Alpine/Ubuntu) dan 'db:monitor' (cara Laravel cek DB)
+sudo docker compose exec -T app sh -c '
+    count=0
+    while ! php artisan db:monitor > /dev/null 2>&1; do
+        if [ $count -gt 20 ]; then echo "Timeout: MySQL not ready"; exit 1; fi
+        echo "Waiting for database connection... ($count)"
+        sleep 3
+        count=$((count + 1))
+    done
+'
+# Jalankan migrasi dengan flag --force agar tidak minta konfirmasi manual
+sudo docker compose exec -T app php artisan migrate:fresh --force
+ 
+echo "=== BUILD SUCCESS ==="

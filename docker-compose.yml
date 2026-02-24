@@ -141,6 +141,58 @@ services:
         max-size: "10m"
         max-file: "5"
 
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: laravel-minishop-prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - laravel-network
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: laravel-minishop-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - laravel-network
+    restart: unless-stopped
+  
+
+  # Node Exporter (monitor server/container)
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: laravel-minishop-node-exporter
+    ports:
+      - "9100:9100"
+    networks:
+      - laravel-network
+    restart: unless-stopped
+  
+  # MySQL Exporter
+  mysqld-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: laravel-minishop-mysql-exporter
+    environment:
+      - DATA_SOURCE_NAME=laravel_user:laravel_password@(mysql:3306)/
+    depends_on:
+      - mysql
+    ports:
+      - "9104:9104"
+    networks:
+      - laravel-network
+    restart: unless-stopped
+
 volumes:
   mysql-data:
     driver: local

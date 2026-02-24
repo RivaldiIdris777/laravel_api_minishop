@@ -16,6 +16,7 @@
         "laravel/socialite": "^5.24",
         "laravel/tinker": "^2.10.1",
         "midtrans/midtrans-php": "^2.6",
+        "promphp/prometheus_client_php": "^2.14",
         "spatie/laravel-permission": "^6.24",
         "tymon/jwt-auth": "^2.2"
     },
