@@ -3,71 +3,54 @@ FROM php:8.2-fpm-alpine
 # Set working directory
 WORKDIR /var/www/html
 
-# Install build dependencies first
-RUN apk add --no-cache --virtual .build-deps \
-    autoconf \
-    build-base \
-    && apk add --no-cache \
+# Install dependencies + PHP extensions
+RUN apk add --no-cache \
     mysql-client \
     curl \
     git \
-    oniguruma-dev
+    oniguruma-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    && docker-php-ext-install pdo pdo_mysql bcmath opcache
 
-# Install PHP extensions
-RUN docker-php-ext-install -j$(nproc) \
-    pdo \
-    pdo_mysql \
-    bcmath \
-    && docker-php-ext-enable pdo pdo_mysql bcmath
+# PHP Configuration
+RUN echo "memory_limit=512M" > /usr/local/etc/php/conf.d/laravel.ini && \
+    echo "upload_max_filesize=100M" >> /usr/local/etc/php/conf.d/laravel.ini && \
+    echo "post_max_size=100M" >> /usr/local/etc/php/conf.d/laravel.ini && \
+    echo "max_execution_time=300" >> /usr/local/etc/php/conf.d/laravel.ini && \
+    echo "log_errors=On" >> /usr/local/etc/php/conf.d/laravel.ini
 
-# Remove build dependencies
-RUN apk del --no-network .build-deps
+# OPCache (PENTING untuk performance saat multi replica)
+RUN echo "opcache.enable=1" > /usr/local/etc/php/conf.d/opcache.ini && \
+    echo "opcache.memory_consumption=128" >> /usr/local/etc/php/conf.d/opcache.ini && \
+    echo "opcache.max_accelerated_files=10000" >> /usr/local/etc/php/conf.d/opcache.ini && \
+    echo "opcache.validate_timestamps=0" >> /usr/local/etc/php/conf.d/opcache.ini
 
-# Configure PHP
-RUN echo "memory_limit = 256M" > /usr/local/etc/php/conf.d/laravel.ini && \
-    echo "upload_max_filesize = 100M" >> /usr/local/etc/php/conf.d/laravel.ini && \
-    echo "post_max_size = 100M" >> /usr/local/etc/php/conf.d/laravel.ini && \
-    echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/laravel.ini && \
-    echo "log_errors = On" >> /usr/local/etc/php/conf.d/laravel.ini
-
-# Copy Composer dari official image
+# Copy Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Create non-root user
 RUN addgroup -g 1000 kevinuser && \
     adduser -D -u 1000 -G kevinuser kevinuser
 
-# Copy project files
+# Copy project
 COPY --chown=kevinuser:kevinuser . /var/www/html
 
-# Copy entrypoint script (sebagai root agar bisa chmod)
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Change to kevinuser untuk install composer
 USER kevinuser
 
-# Install PHP dependencies
-RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
+# Install Laravel dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Create storage directories
-RUN mkdir -p storage/logs \
-    storage/framework/cache \
+# Storage permission
+RUN mkdir -p storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
     bootstrap/cache && \
     chmod -R 775 storage bootstrap/cache
 
-# Kembali ke root agar entrypoint bisa fix permission saat start
 USER root
 
-# Expose port 9000 untuk PHP-FPM
 EXPOSE 9000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD php -r "exit(0);" || exit 1
-
-# Gunakan entrypoint untuk fix permission, lalu jalankan php-fpm
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm"]
